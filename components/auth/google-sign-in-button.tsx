@@ -27,6 +27,7 @@ declare global {
         };
       };
     };
+    __mirrorMatesGoogleInitialized?: boolean;
   }
 }
 
@@ -58,12 +59,38 @@ export function GoogleSignInButton({
   onCredential: (credential: string) => Promise<void> | void;
 }) {
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const onCredentialRef = useRef(onCredential);
   const [status, setStatus] = useState<"idle" | "loading" | "ready" | "error">(
     "idle",
   );
 
   useEffect(() => {
+    onCredentialRef.current = onCredential;
+  }, [onCredential]);
+
+  useEffect(() => {
     let cancelled = false;
+
+    const renderGoogleButton = () => {
+      if (!window.google?.accounts?.id || !containerRef.current) {
+        return;
+      }
+
+      const containerWidth = Math.floor(
+        containerRef.current.clientWidth || 320,
+      );
+      const buttonWidth = Math.max(220, Math.min(400, containerWidth));
+
+      containerRef.current.innerHTML = "";
+      window.google.accounts.id.renderButton(containerRef.current, {
+        theme: "filled_black",
+        size: "large",
+        shape: "pill",
+        text: "continue_with",
+        width: buttonWidth,
+        logo_alignment: "left",
+      });
+    };
 
     const init = async () => {
       if (!GOOGLE_CLIENT_ID) {
@@ -97,23 +124,28 @@ export function GoogleSignInButton({
           return;
         }
 
-        containerRef.current.innerHTML = "";
+        if (!window.__mirrorMatesGoogleInitialized) {
+          window.google.accounts.id.initialize({
+            client_id: GOOGLE_CLIENT_ID,
+            callback: async ({ credential }) => {
+              await onCredentialRef.current(credential);
+            },
+          });
+          window.__mirrorMatesGoogleInitialized = true;
+        }
 
-        window.google.accounts.id.initialize({
-          client_id: GOOGLE_CLIENT_ID,
-          callback: async ({ credential }) => {
-            await onCredential(credential);
-          },
-        });
+        renderGoogleButton();
 
-        window.google.accounts.id.renderButton(containerRef.current, {
-          theme: "filled_black",
-          size: "large",
-          shape: "pill",
-          text: "continue_with",
-          width: "100%",
-          logo_alignment: "left",
-        });
+        if (typeof ResizeObserver !== "undefined") {
+          const observer = new ResizeObserver(() => {
+            renderGoogleButton();
+          });
+          observer.observe(containerRef.current);
+
+          setStatus("ready");
+
+          return () => observer.disconnect();
+        }
 
         setStatus("ready");
       } catch {
@@ -121,14 +153,21 @@ export function GoogleSignInButton({
           setStatus("error");
         }
       }
+
+      return undefined;
     };
 
-    void init();
+    let cleanup: (() => void) | undefined;
+
+    void init().then((fn) => {
+      cleanup = fn;
+    });
 
     return () => {
       cancelled = true;
+      cleanup?.();
     };
-  }, [onCredential]);
+  }, []);
 
   if (!GOOGLE_CLIENT_ID) {
     return (
