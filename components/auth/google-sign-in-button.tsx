@@ -27,12 +27,14 @@ declare global {
         };
       };
     };
-    __mirrorMatesGoogleInitialized?: boolean;
   }
 }
 
+const GOOGLE_IDENTITY_SCRIPT_ID = "google-identity-script";
+const GOOGLE_IDENTITY_SCRIPT_SRC = "https://accounts.google.com/gsi/client";
+
 function ensureGoogleScript() {
-  const existing = document.getElementById("google-identity-script");
+  const existing = document.getElementById(GOOGLE_IDENTITY_SCRIPT_ID);
 
   if (existing) {
     return Promise.resolve();
@@ -40,8 +42,8 @@ function ensureGoogleScript() {
 
   return new Promise<void>((resolve, reject) => {
     const script = document.createElement("script");
-    script.id = "google-identity-script";
-    script.src = "https://accounts.google.com/gsi/client";
+    script.id = GOOGLE_IDENTITY_SCRIPT_ID;
+    script.src = GOOGLE_IDENTITY_SCRIPT_SRC;
     script.async = true;
     script.defer = true;
     script.onload = () => resolve();
@@ -70,6 +72,8 @@ export function GoogleSignInButton({
 
   useEffect(() => {
     let cancelled = false;
+    let waitInterval: ReturnType<typeof setInterval> | null = null;
+    let resizeObserver: ResizeObserver | null = null;
 
     const renderGoogleButton = () => {
       if (!window.google?.accounts?.id || !containerRef.current) {
@@ -92,6 +96,34 @@ export function GoogleSignInButton({
       });
     };
 
+    const waitForGoogle = () =>
+      new Promise<void>((resolve, reject) => {
+        const start = Date.now();
+        waitInterval = setInterval(() => {
+          if (cancelled) {
+            if (waitInterval) {
+              clearInterval(waitInterval);
+              waitInterval = null;
+            }
+            reject(new Error("cancelled"));
+            return;
+          }
+          if (window.google?.accounts?.id) {
+            if (waitInterval) {
+              clearInterval(waitInterval);
+              waitInterval = null;
+            }
+            resolve();
+          } else if (Date.now() - start > 5000) {
+            if (waitInterval) {
+              clearInterval(waitInterval);
+              waitInterval = null;
+            }
+            reject(new Error("Google Identity timed out"));
+          }
+        }, 100);
+      });
+
     const init = async () => {
       if (!GOOGLE_CLIENT_ID) {
         setStatus("error");
@@ -102,70 +134,54 @@ export function GoogleSignInButton({
 
       try {
         await ensureGoogleScript();
-
-        const waitForGoogle = () => {
-          return new Promise<void>((resolve, reject) => {
-            const start = Date.now();
-            const interval = setInterval(() => {
-              if (window.google?.accounts?.id) {
-                clearInterval(interval);
-                resolve();
-              } else if (Date.now() - start > 5000) {
-                clearInterval(interval);
-                reject(new Error("Google Identity timed out"));
-              }
-            }, 100);
-          });
-        };
-
         await waitForGoogle();
-
-        if (cancelled || !window.google || !containerRef.current) {
-          return;
-        }
-
-        if (!window.__mirrorMatesGoogleInitialized) {
-          window.google.accounts.id.initialize({
-            client_id: GOOGLE_CLIENT_ID,
-            callback: async ({ credential }) => {
-              await onCredentialRef.current(credential);
-            },
-          });
-          window.__mirrorMatesGoogleInitialized = true;
-        }
-
-        renderGoogleButton();
-
-        if (typeof ResizeObserver !== "undefined") {
-          const observer = new ResizeObserver(() => {
-            renderGoogleButton();
-          });
-          observer.observe(containerRef.current);
-
-          setStatus("ready");
-
-          return () => observer.disconnect();
-        }
-
-        setStatus("ready");
       } catch {
         if (!cancelled) {
           setStatus("error");
         }
+        return;
       }
 
-      return undefined;
+      if (cancelled || !window.google?.accounts?.id || !containerRef.current) {
+        return;
+      }
+
+      // Initialize on each mount so the active callback always matches this component instance.
+      window.google.accounts.id.initialize({
+        client_id: GOOGLE_CLIENT_ID,
+        callback: async ({ credential }) => {
+          await onCredentialRef.current(credential);
+        },
+      });
+
+      renderGoogleButton();
+
+      if (
+        !cancelled &&
+        typeof ResizeObserver !== "undefined" &&
+        containerRef.current
+      ) {
+        resizeObserver = new ResizeObserver(() => {
+          if (!cancelled) {
+            renderGoogleButton();
+          }
+        });
+        resizeObserver.observe(containerRef.current);
+      }
+
+      if (!cancelled) {
+        setStatus("ready");
+      }
     };
 
-    let cleanup: (() => void) | undefined;
-
-    void init().then((fn) => {
-      cleanup = fn;
-    });
+    void init();
 
     return () => {
       cancelled = true;
-      cleanup?.();
+      if (waitInterval) {
+        clearInterval(waitInterval);
+      }
+      resizeObserver?.disconnect();
     };
   }, []);
 

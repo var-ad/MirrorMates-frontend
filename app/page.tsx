@@ -19,19 +19,19 @@ type AuthMode = "login" | "signup";
 const WINDOW_STORIES = [
   {
     title: "Open",
-    caption: "Traits you own and others recognize.",
+    caption: "What you know about yourself and so does everyone else.",
   },
   {
     title: "Blind",
-    caption: "Strengths other people see before you do.",
+    caption: "What others notice about you that you haven't seen yet.",
   },
   {
     title: "Hidden",
-    caption: "Qualities you protect or rarely show first.",
+    caption: "What you know about yourself but haven't shared.",
   },
   {
     title: "Unknown",
-    caption: "Potential still waiting for context.",
+    caption: "What neither you nor others have discovered yet.",
   },
 ];
 
@@ -53,7 +53,7 @@ export default function HomePage() {
     () =>
       isAuthenticated && user
         ? `Welcome back, ${user.fullName ?? user.email.split("@")[0]}.`
-        : "See the version of you that other people already know.",
+        : "Meet the version of you that everyone else already sees.",
     [isAuthenticated, user],
   );
 
@@ -135,7 +135,7 @@ export default function HomePage() {
           <Link href="/" className="space-y-1">
             <div className="section-kicker">MirrorMates</div>
             <div className="font-[var(--font-display)] text-2xl tracking-[-0.04em]">
-              Human feedback, designed to feel safe.
+              Honest feedback, without the awkward conversation.
             </div>
           </Link>
 
@@ -149,13 +149,7 @@ export default function HomePage() {
                   Sign out
                 </Button>
               </>
-            ) : (
-              <>
-                <Link href="#auth">
-                  <Button>Start reflecting</Button>
-                </Link>
-              </>
-            )}
+            ) : null}
           </div>
         </header>
 
@@ -166,10 +160,8 @@ export default function HomePage() {
                 {headline}
               </h1>
               <p className="max-w-2xl text-xl leading-9 text-[var(--text-muted)]">
-                MirrorMates turns a classic self-awareness exercise into
-                something shareable: pick your own traits, invite other people,
-                and watch the four windows fill in with patterns you can
-                actually feel.
+                Pick traits that describe you, invite people who know you, and
+                see where your self-image matches theirs and where it doesn't.
               </p>
             </div>
 
@@ -229,12 +221,12 @@ export default function HomePage() {
                 <h2 className="font-[var(--font-display)] text-5xl leading-[0.95] tracking-[-0.05em]">
                   {mode === "login"
                     ? "Step back into your reflection room."
-                    : "Start with a code in your inbox, not a cold form."}
+                    : "No profile to fill out. Just your email, then a 6-digit code."}
                 </h2>
                 <p className="text-lg leading-8 text-[rgba(25,20,16,0.72)]">
                   {mode === "login"
                     ? "Use your password or Google to continue."
-                    : "Sign up with email and we'll send a 6-digit verification code before creating your account."}
+                    : "We'll verify you first, then create your account."}
                 </p>
               </div>
 
@@ -268,7 +260,7 @@ export default function HomePage() {
                     onChange={(event) =>
                       updateField("email", event.target.value)
                     }
-                    placeholder="you@mirrormates.com"
+                    placeholder="email@example.com"
                     required
                   />
                 </div>
@@ -281,6 +273,7 @@ export default function HomePage() {
                   <TextInput
                     id="password"
                     type="password"
+                    minLength={8}
                     value={form.password}
                     onChange={(event) =>
                       updateField("password", event.target.value)

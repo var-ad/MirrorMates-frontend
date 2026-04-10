@@ -23,6 +23,12 @@ function ResetPasswordPageContent() {
     setError(null);
     setMessage(null);
 
+    if (newPassword.length < 8) {
+      setError("Password must be at least 8 characters.");
+      setPending(false);
+      return;
+    }
+
     try {
       const result = await resetPassword({ email, otp, newPassword });
       setMessage(result.message);
@@ -67,8 +73,12 @@ function ResetPasswordPageContent() {
               <TextInput
                 id="reset-otp"
                 inputMode="numeric"
+                autoComplete="one-time-code"
+                maxLength={6}
                 value={otp}
-                onChange={(event) => setOtp(event.target.value)}
+                onChange={(event) =>
+                  setOtp(event.target.value.replace(/\D/g, "").slice(0, 6))
+                }
                 placeholder="000000"
                 required
               />
@@ -76,9 +86,10 @@ function ResetPasswordPageContent() {
 
             <div className="space-y-2">
               <Label htmlFor="reset-password">New password</Label>
-              <TextInput
+                           <TextInput
                 id="reset-password"
                 type="password"
+                minLength={8}
                 value={newPassword}
                 onChange={(event) => setNewPassword(event.target.value)}
                 placeholder="At least 8 characters"

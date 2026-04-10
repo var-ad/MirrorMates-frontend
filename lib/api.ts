@@ -50,16 +50,30 @@ async function request<T>(path: string, init: RequestInitWithJson = {}) {
     headers.set("Authorization", `Bearer ${init.accessToken}`);
   }
 
-  const response = await fetch(`${API_BASE_URL}${path}`, {
-    ...init,
-    headers,
-    body: init.json !== undefined ? JSON.stringify(init.json) : init.body,
-  });
+  let response: Response;
+
+  try {
+    response = await fetch(`${API_BASE_URL}${path}`, {
+      ...init,
+      headers,
+      body: init.json !== undefined ? JSON.stringify(init.json) : init.body,
+    });
+  } catch {
+    throw new Error(
+      "Unable to reach the server. Check your connection and try again.",
+    );
+  }
 
   const contentType = response.headers.get("content-type") ?? "";
-  const payload = contentType.includes("application/json")
-    ? ((await response.json()) as T | BackendErrorPayload)
-    : undefined;
+  let payload: T | BackendErrorPayload | undefined;
+
+  if (contentType.includes("application/json")) {
+    try {
+      payload = (await response.json()) as T | BackendErrorPayload;
+    } catch {
+      throw new ApiError("Invalid response from server", response.status);
+    }
+  }
 
   if (!response.ok) {
     const errorPayload = payload as BackendErrorPayload | undefined;

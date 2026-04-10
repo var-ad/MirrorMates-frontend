@@ -3,8 +3,10 @@
 import {
   createContext,
   startTransition,
+  useCallback,
   useContext,
   useEffect,
+  useMemo,
   useState,
 } from "react";
 import {
@@ -60,6 +62,30 @@ interface AuthContextValue {
 const STORAGE_KEY = "mirrormates.session";
 const AuthContext = createContext<AuthContextValue | null>(null);
 
+function isStoredSession(value: unknown): value is StoredSession {
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+
+  const record = value as Record<string, unknown>;
+  const user = record.user;
+
+  if (!user || typeof user !== "object") {
+    return false;
+  }
+
+  const userRecord = user as Record<string, unknown>;
+
+  return (
+    typeof record.accessToken === "string" &&
+    record.accessToken.length > 0 &&
+    typeof record.refreshToken === "string" &&
+    record.refreshToken.length > 0 &&
+    typeof userRecord.id === "string" &&
+    typeof userRecord.email === "string"
+  );
+}
+
 function readStoredSession(): StoredSession | null {
   if (typeof window === "undefined") {
     return null;
@@ -72,7 +98,12 @@ function readStoredSession(): StoredSession | null {
   }
 
   try {
-    return JSON.parse(raw) as StoredSession;
+    const parsed: unknown = JSON.parse(raw);
+    if (!isStoredSession(parsed)) {
+      window.localStorage.removeItem(STORAGE_KEY);
+      return null;
+    }
+    return parsed;
   } catch {
     window.localStorage.removeItem(STORAGE_KEY);
     return null;
@@ -104,12 +135,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<StoredSession | null>(null);
   const [isReady, setIsReady] = useState(false);
 
-  const applySession = (nextSession: StoredSession | null) => {
+  const applySession = useCallback((nextSession: StoredSession | null) => {
     writeStoredSession(nextSession);
     startTransition(() => {
       setSession(nextSession);
     });
-  };
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -167,95 +198,116 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
-  const withAuthorized = async <T,>(
-    operation: (accessToken: string) => Promise<T>,
-  ) => {
-    if (!session) {
-      throw new Error("You need to sign in first");
-    }
-
-    try {
-      return await operation(session.accessToken);
-    } catch (error) {
-      if (
-        error instanceof ApiError &&
-        error.status === 401 &&
-        session.refreshToken
-      ) {
-        const nextTokens = await refreshToken(session.refreshToken);
-        const nextUser = await me(nextTokens.accessToken);
-        const refreshedSession: StoredSession = {
-          user: nextUser.user,
-          accessToken: nextTokens.accessToken,
-          refreshToken: nextTokens.refreshToken,
-        };
-        applySession(refreshedSession);
-        return operation(refreshedSession.accessToken);
+  const withAuthorized = useCallback(
+    async <T,>(operation: (accessToken: string) => Promise<T>): Promise<T> => {
+      if (!session) {
+        throw new Error("You need to sign in first");
       }
 
-      throw error;
-    }
-  };
+      try {
+        return await operation(session.accessToken);
+      } catch (error) {
+        if (
+          error instanceof ApiError &&
+          error.status === 401 &&
+          session.refreshToken
+        ) {
+          const nextTokens = await refreshToken(session.refreshToken);
+          const nextUser = await me(nextTokens.accessToken);
+          const refreshedSession: StoredSession = {
+            user: nextUser.user,
+            accessToken: nextTokens.accessToken,
+            refreshToken: nextTokens.refreshToken,
+          };
+          applySession(refreshedSession);
+          return operation(refreshedSession.accessToken);
+        }
 
-  const refreshProfile = async () => {
+        throw error;
+      }
+    },
+    [session, applySession],
+  );
+
+  const refreshProfile = useCallback(async () => {
     await withAuthorized(async (accessToken) => {
       const result = await me(accessToken);
-      applySession(
-        session
-          ? {
-              ...session,
-              user: result.user,
-            }
-          : null,
-      );
+      startTransition(() => {
+        setSession((prev) => {
+          if (!prev) {
+            return null;
+          }
+          const next: StoredSession = { ...prev, user: result.user };
+          writeStoredSession(next);
+          return next;
+        });
+      });
       return result;
     });
-  };
+  }, [withAuthorized]);
 
-  const value: AuthContextValue = {
-    isReady,
-    isAuthenticated: Boolean(session),
-    user: session?.user ?? null,
-    accessToken: session?.accessToken ?? null,
-    signup: async (input) => signupRequest(input),
-    verifySignup: async (input) => {
-      const response = await verifySignupRequest(input);
-      applySession(sessionFromAuthResponse(response));
-      return response;
-    },
-    login: async (input) => {
-      const response = await loginRequest(input);
-      applySession(sessionFromAuthResponse(response));
-      return response;
-    },
-    googleLogin: async (idToken) => {
-      const response = await googleLoginRequest({ idToken });
-      applySession(sessionFromAuthResponse(response));
-      return response;
-    },
-    forgotPassword: async (email) => forgotPasswordRequest({ email }),
-    resetPassword: async (input) => resetPasswordRequest(input),
-    changePassword: async (input) => {
+  const logout = useCallback(async () => {
+    if (session?.refreshToken) {
+      try {
+        await logoutRequest(session.refreshToken);
+      } catch (error) {
+        console.warn(extractErrorMessage(error));
+      }
+    }
+
+    applySession(null);
+  }, [session?.refreshToken, applySession]);
+
+  const changePassword = useCallback(
+    async (input: { currentPassword: string; newPassword: string }) => {
       const response = await withAuthorized((accessToken) =>
         changePasswordRequest(accessToken, input),
       );
       applySession(sessionFromAuthResponse(response));
       return response;
     },
-    logout: async () => {
-      if (session?.refreshToken) {
-        try {
-          await logoutRequest(session.refreshToken);
-        } catch (error) {
-          console.warn(extractErrorMessage(error));
-        }
-      }
+    [withAuthorized, applySession],
+  );
 
-      applySession(null);
-    },
-    withAuthorized,
-    refreshProfile,
-  };
+  const value: AuthContextValue = useMemo(
+    () => ({
+      isReady,
+      isAuthenticated: Boolean(session),
+      user: session?.user ?? null,
+      accessToken: session?.accessToken ?? null,
+      signup: async (input) => signupRequest(input),
+      verifySignup: async (input) => {
+        const response = await verifySignupRequest(input);
+        applySession(sessionFromAuthResponse(response));
+        return response;
+      },
+      login: async (input) => {
+        const response = await loginRequest(input);
+        applySession(sessionFromAuthResponse(response));
+        return response;
+      },
+      googleLogin: async (idToken) => {
+        const response = await googleLoginRequest({ idToken });
+        applySession(sessionFromAuthResponse(response));
+        return response;
+      },
+      forgotPassword: async (email) => forgotPasswordRequest({ email }),
+      resetPassword: async (input) => resetPasswordRequest(input),
+      changePassword,
+      logout,
+      withAuthorized,
+      refreshProfile,
+    }),
+    [
+      isReady,
+      session,
+      applySession,
+      withAuthorized,
+      refreshProfile,
+      changePassword,
+      logout,
+    ],
+  );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

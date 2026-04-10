@@ -66,6 +66,12 @@ function SessionExperience() {
     let cancelled = false;
 
     const loadSession = async () => {
+      if (!sessionId) {
+        setError("Invalid session link.");
+        setLoading(false);
+        return;
+      }
+
       setLoading(true);
       setError(null);
 
@@ -110,6 +116,10 @@ function SessionExperience() {
   }, [sessionId, withAuthorized]);
 
   const handleSaveSelections = async () => {
+    if (!sessionId) {
+      return;
+    }
+
     setBusy(true);
     setError(null);
     setMessage(null);
@@ -131,6 +141,10 @@ function SessionExperience() {
   };
 
   const handleSaveInvite = async () => {
+    if (!sessionId) {
+      return;
+    }
+
     setBusy(true);
     setError(null);
     setMessage(null);
@@ -152,6 +166,10 @@ function SessionExperience() {
   };
 
   const handleGenerateReport = async () => {
+    if (!sessionId) {
+      return;
+    }
+
     setReportBusy(true);
     setError(null);
     setMessage(null);

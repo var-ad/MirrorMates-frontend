@@ -211,7 +211,6 @@ export interface StoredReport {
     hidden: string[];
     unknown: string[];
   };
-  prompt: string;
   reportText: string;
   createdAt: string;
   updatedAt: string;

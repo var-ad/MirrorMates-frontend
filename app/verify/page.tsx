@@ -63,13 +63,17 @@ function VerifyPageContent() {
               />
             </div>
 
-            <div className="space-y-2">
+                       <div className="space-y-2">
               <Label htmlFor="verify-otp">6-digit code</Label>
               <TextInput
                 id="verify-otp"
                 inputMode="numeric"
+                autoComplete="one-time-code"
+                maxLength={6}
                 value={otp}
-                onChange={(event) => setOtp(event.target.value)}
+                onChange={(event) =>
+                  setOtp(event.target.value.replace(/\D/g, "").slice(0, 6))
+                }
                 placeholder="000000"
                 required
               />

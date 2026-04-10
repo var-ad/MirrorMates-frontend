@@ -34,6 +34,12 @@ export default function InvitePage() {
     let cancelled = false;
 
     const loadInvite = async () => {
+      if (!token) {
+        setError("Invalid invite link.");
+        setLoading(false);
+        return;
+      }
+
       setLoading(true);
       setError(null);
 
@@ -63,6 +69,11 @@ export default function InvitePage() {
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if (!token) {
+      setError("Invalid invite link.");
+      return;
+    }
+
     setSubmitting(true);
     setError(null);
     setMessage(null);
