@@ -108,16 +108,34 @@ export const SelectInput = forwardRef<
   React.SelectHTMLAttributes<HTMLSelectElement>
 >(function SelectInput({ className, children, ...props }, ref) {
   return (
-    <select
-      ref={ref}
-      className={cn(
-        "min-h-12 w-full rounded-[var(--radius-sm)] border border-[var(--line)] bg-[rgba(255,255,255,0.04)] px-4 py-3 text-[var(--text)] outline-none transition focus:border-[var(--accent)]",
-        className,
-      )}
-      {...props}
-    >
-      {children}
-    </select>
+    <div className="relative w-full">
+      <select
+        ref={ref}
+        className={cn(
+          "select-input min-h-12 w-full appearance-none rounded-[var(--radius-sm)] border border-[var(--line)] bg-[var(--select-surface)] px-4 py-3 pr-12 text-[var(--text)] outline-none transition hover:border-[var(--line-strong)] focus:border-[var(--accent)] focus:bg-[var(--select-surface-active)] disabled:cursor-not-allowed disabled:opacity-45",
+          className,
+        )}
+        {...props}
+      >
+        {children}
+      </select>
+      <span
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-y-0 right-4 flex items-center text-[var(--accent)]"
+      >
+        <svg
+          viewBox="0 0 16 16"
+          className="h-4 w-4"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.8"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <path d="M3.5 6.25 8 10.75l4.5-4.5" />
+        </svg>
+      </span>
+    </div>
   );
 });
 

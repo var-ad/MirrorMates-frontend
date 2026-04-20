@@ -4,36 +4,43 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Suspense, useState } from "react";
 import { useAuth } from "@/components/providers/auth-provider";
-import { Button, Label, Notice, Panel, TextInput } from "@/components/ui/primitives";
+import { useToast } from "@/components/providers/toast-provider";
+import { Button, Label, Panel, TextInput } from "@/components/ui/primitives";
 import { extractErrorMessage } from "@/lib/api";
 
 function ResetPasswordPageContent() {
   const searchParams = useSearchParams();
   const { resetPassword } = useAuth();
+  const { showToast } = useToast();
   const [email, setEmail] = useState(searchParams.get("email") ?? "");
   const [otp, setOtp] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [pending, setPending] = useState(false);
-  const [message, setMessage] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setPending(true);
-    setError(null);
-    setMessage(null);
 
     if (newPassword.length < 8) {
-      setError("Password must be at least 8 characters.");
+      showToast({
+        message: "Password must be at least 8 characters.",
+        tone: "danger",
+      });
       setPending(false);
       return;
     }
 
     try {
       const result = await resetPassword({ email, otp, newPassword });
-      setMessage(result.message);
+      showToast({
+        message: result.message,
+        tone: "success",
+      });
     } catch (resetError) {
-      setError(extractErrorMessage(resetError));
+      showToast({
+        message: extractErrorMessage(resetError),
+        tone: "danger",
+      });
     } finally {
       setPending(false);
     }
@@ -52,9 +59,6 @@ function ResetPasswordPageContent() {
               Enter the OTP from your email, then choose a new password.
             </p>
           </div>
-
-          {message ? <Notice tone="success">{message}</Notice> : null}
-          {error ? <Notice tone="danger">{error}</Notice> : null}
 
           <form className="space-y-4" onSubmit={handleSubmit}>
             <div className="space-y-2">

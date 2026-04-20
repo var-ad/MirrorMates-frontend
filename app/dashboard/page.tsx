@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { AuthGuard } from "@/components/ui/auth-guard";
 import { useAuth } from "@/components/providers/auth-provider";
+import { useToast } from "@/components/providers/toast-provider";
 import { AdjectiveSelector } from "@/components/johari/adjective-selector";
 import {
   Button,
@@ -28,26 +29,30 @@ import type {
 } from "@/lib/types";
 import { formatDate, formatRelativeCount } from "@/lib/utils";
 
+function shuffleAdjectives(adjectives: Adjective[]): Adjective[] {
+  const next = [...adjectives];
+
+  for (let index = next.length - 1; index > 0; index -= 1) {
+    const swapIndex = Math.floor(Math.random() * (index + 1));
+    [next[index], next[swapIndex]] = [next[swapIndex], next[index]];
+  }
+
+  return next;
+}
+
 function DashboardExperience() {
   const router = useRouter();
-  const { user, logout, changePassword, withAuthorized } = useAuth();
+  const { user, logout, withAuthorized } = useAuth();
+  const { showToast } = useToast();
   const [adjectives, setAdjectives] = useState<Adjective[]>([]);
   const [sessions, setSessions] = useState<SessionSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [pending, setPending] = useState(false);
-  const [passwordPending, setPasswordPending] = useState(false);
-  const [accountMenuOpen, setAccountMenuOpen] = useState(false);
-  const [message, setMessage] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
   const [form, setForm] = useState({
     title: "My Johari Window",
     adjectiveIds: [] as number[],
     inviteExpiresInDays: 7,
     responseIdentityMode: "named" as ResponseIdentityMode,
-  });
-  const [passwordForm, setPasswordForm] = useState({
-    currentPassword: "",
-    newPassword: "",
   });
 
   useEffect(() => {
@@ -68,7 +73,10 @@ function DashboardExperience() {
         }
       } catch (loadError) {
         if (!cancelled) {
-          setError(extractErrorMessage(loadError));
+          showToast({
+            message: extractErrorMessage(loadError),
+            tone: "danger",
+          });
         }
       } finally {
         if (!cancelled) {
@@ -82,7 +90,7 @@ function DashboardExperience() {
     return () => {
       cancelled = true;
     };
-  }, [withAuthorized]);
+  }, [showToast, withAuthorized]);
 
   const totalResponses = useMemo(
     () =>
@@ -93,48 +101,34 @@ function DashboardExperience() {
     [sessions],
   );
 
+  const randomizedAdjectives = useMemo(
+    () => shuffleAdjectives(adjectives),
+    [adjectives],
+  );
+
   const handleCreateSession = async (
     event: React.FormEvent<HTMLFormElement>,
   ) => {
     event.preventDefault();
     setPending(true);
-    setError(null);
-    setMessage(null);
 
     try {
       const created = await withAuthorized((accessToken) =>
         createSession(accessToken, form),
       );
       setSessions((current) => [created.session, ...current]);
-      setMessage("Session created. Opening the owner view now.");
+      showToast({
+        message: "Session created. Opening the owner view now.",
+        tone: "success",
+      });
       router.push(`/session/${created.session.id}`);
     } catch (createError) {
-      setError(extractErrorMessage(createError));
+      showToast({
+        message: extractErrorMessage(createError),
+        tone: "danger",
+      });
     } finally {
       setPending(false);
-    }
-  };
-
-  const handlePasswordChange = async (
-    event: React.FormEvent<HTMLFormElement>,
-  ) => {
-    event.preventDefault();
-    setPasswordPending(true);
-    setError(null);
-    setMessage(null);
-
-    try {
-      await changePassword(passwordForm);
-      setPasswordForm({
-        currentPassword: "",
-        newPassword: "",
-      });
-      setAccountMenuOpen(false);
-      setMessage("Password changed. All older refresh sessions were revoked.");
-    } catch (passwordError) {
-      setError(extractErrorMessage(passwordError));
-    } finally {
-      setPasswordPending(false);
     }
   };
 
@@ -154,78 +148,16 @@ function DashboardExperience() {
             <Link href="/">
               <Button tone="ghost">Home</Button>
             </Link>
-            <Button
-              tone="ghost"
-              onClick={() => setAccountMenuOpen((current) => !current)}
-            >
-              Account
-            </Button>
+            {user?.hasPasswordLogin ? (
+              <Link href="/dashboard/account">
+                <Button tone="ghost">Account</Button>
+              </Link>
+            ) : null}
             <Button tone="danger" onClick={() => void logout()}>
               Sign out
             </Button>
           </div>
         </header>
-
-        {accountMenuOpen ? (
-          <div className="mt-6 flex justify-end">
-            <Panel className="w-full max-w-xl space-y-5">
-              <SectionHeading
-                kicker="Account care"
-                title="Change your password without leaving the dashboard."
-                description="Updating it revokes your older refresh sessions automatically."
-              />
-
-              <form className="space-y-4" onSubmit={handlePasswordChange}>
-                <div className="space-y-2">
-                  <Label htmlFor="current-password">Current password</Label>
-                  <TextInput
-                    id="current-password"
-                    type="password"
-                    value={passwordForm.currentPassword}
-                    onChange={(event) =>
-                      setPasswordForm((current) => ({
-                        ...current,
-                        currentPassword: event.target.value,
-                      }))
-                    }
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="new-password">New password</Label>
-                  <TextInput
-                    id="new-password"
-                    type="password"
-                    value={passwordForm.newPassword}
-                    onChange={(event) =>
-                      setPasswordForm((current) => ({
-                        ...current,
-                        newPassword: event.target.value,
-                      }))
-                    }
-                  />
-                </div>
-
-                <div className="flex flex-wrap gap-3">
-                  <Button
-                    className="min-w-44"
-                    tone="secondary"
-                    disabled={passwordPending}
-                  >
-                    {passwordPending ? "Updating password..." : "Change password"}
-                  </Button>
-                  <Button
-                    type="button"
-                    tone="ghost"
-                    onClick={() => setAccountMenuOpen(false)}
-                  >
-                    Close
-                  </Button>
-                </div>
-              </form>
-            </Panel>
-          </div>
-        ) : null}
 
         <div className="grid gap-8 py-10 xl:grid-cols-[0.9fr_1.1fr]">
           <div className="space-y-6">
@@ -235,9 +167,6 @@ function DashboardExperience() {
                 title="Spin up a new Johari round."
                 description="Pick your own adjectives first, choose whether respondents stay named or anonymous, and set the invite expiry."
               />
-
-              {message ? <Notice tone="success">{message}</Notice> : null}
-              {error ? <Notice tone="danger">{error}</Notice> : null}
 
               <form className="space-y-6" onSubmit={handleCreateSession}>
                 <div className="space-y-2">
@@ -296,7 +225,7 @@ function DashboardExperience() {
                 </div>
 
                 <AdjectiveSelector
-                  adjectives={adjectives}
+                  adjectives={randomizedAdjectives}
                   selectedIds={form.adjectiveIds}
                   onChange={(nextValue) =>
                     setForm((current) => ({
@@ -307,6 +236,7 @@ function DashboardExperience() {
                   title="Your starting adjectives"
                   hint="Choose the words you would use for yourself before you invite anyone else."
                   displayNameRequired={form.responseIdentityMode === "named"}
+                  orderMode="input"
                 />
 
                 <Button
@@ -320,7 +250,7 @@ function DashboardExperience() {
           </div>
 
           <div className="space-y-6">
-            <Panel className="grid gap-4 md:grid-cols-3">
+            <Panel className="grid gap-4 md:grid-cols-2">
               <div className="rounded-[var(--radius-md)] border border-[var(--line)] bg-white/3 px-4 py-4">
                 <div className="text-xs uppercase tracking-[0.18em] text-[var(--text-subtle)]">
                   Sessions
@@ -335,16 +265,6 @@ function DashboardExperience() {
                 </div>
                 <div className="mt-2 font-[var(--font-display)] text-4xl tracking-[-0.04em]">
                   {totalResponses}
-                </div>
-              </div>
-              <div className="rounded-[var(--radius-md)] border border-[rgba(255,143,63,0.25)] bg-[rgba(255,143,63,0.08)] px-4 py-4">
-                <div className="text-xs uppercase tracking-[0.18em] text-[var(--text-subtle)]">
-                  Identity mode
-                </div>
-                <div className="mt-2 text-lg font-bold text-[var(--text)]">
-                  {form.responseIdentityMode === "named"
-                    ? "Named by default"
-                    : "Anonymous by default"}
                 </div>
               </div>
             </Panel>

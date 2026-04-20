@@ -4,31 +4,35 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useState } from "react";
 import { useAuth } from "@/components/providers/auth-provider";
-import { Button, Label, Notice, Panel, TextInput } from "@/components/ui/primitives";
+import { useToast } from "@/components/providers/toast-provider";
+import { Button, Label, Panel, TextInput } from "@/components/ui/primitives";
 import { extractErrorMessage } from "@/lib/api";
 
 function VerifyPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { verifySignup } = useAuth();
+  const { showToast } = useToast();
   const [email, setEmail] = useState(searchParams.get("email") ?? "");
   const [otp, setOtp] = useState("");
   const [pending, setPending] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [message, setMessage] = useState<string | null>(null);
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setPending(true);
-    setError(null);
-    setMessage(null);
 
     try {
       await verifySignup({ email, otp });
-      setMessage("Email verified. Entering your dashboard now.");
+      showToast({
+        message: "Email verified. Entering your dashboard now.",
+        tone: "success",
+      });
       router.push("/dashboard");
     } catch (verificationError) {
-      setError(extractErrorMessage(verificationError));
+      showToast({
+        message: extractErrorMessage(verificationError),
+        tone: "danger",
+      });
     } finally {
       setPending(false);
     }
@@ -47,9 +51,6 @@ function VerifyPageContent() {
               MirrorMates only creates the account after the 6-digit OTP is confirmed.
             </p>
           </div>
-
-          {message ? <Notice tone="success">{message}</Notice> : null}
-          {error ? <Notice tone="danger">{error}</Notice> : null}
 
           <form className="space-y-4" onSubmit={handleSubmit}>
             <div className="space-y-2">

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { AdjectiveSelector } from "@/components/johari/adjective-selector";
+import { useToast } from "@/components/providers/toast-provider";
 import {
   Button,
   Label,
@@ -54,10 +55,10 @@ function getOrCreateInvitePeerId(token: string): string | undefined {
 export default function InvitePage() {
   const params = useParams<{ token: string }>();
   const token = Array.isArray(params.token) ? params.token[0] : params.token;
+  const { showToast } = useToast();
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [message, setMessage] = useState<string | null>(null);
+  const [pageError, setPageError] = useState<string | null>(null);
   const [invite, setInvite] = useState<InviteMeta | null>(null);
   const [adjectives, setAdjectives] = useState<Adjective[]>([]);
   const [displayName, setDisplayName] = useState("");
@@ -69,13 +70,13 @@ export default function InvitePage() {
 
     const loadInvite = async () => {
       if (!token) {
-        setError("Invalid invite link.");
+        setPageError("Invalid invite link.");
         setLoading(false);
         return;
       }
 
       setLoading(true);
-      setError(null);
+      setPageError(null);
 
       try {
         const result = await getInviteMeta(token);
@@ -85,7 +86,7 @@ export default function InvitePage() {
         }
       } catch (inviteError) {
         if (!cancelled) {
-          setError(extractErrorMessage(inviteError));
+          setPageError(extractErrorMessage(inviteError));
         }
       } finally {
         if (!cancelled) {
@@ -104,13 +105,11 @@ export default function InvitePage() {
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!token) {
-      setError("Invalid invite link.");
+      setPageError("Invalid invite link.");
       return;
     }
 
     setSubmitting(true);
-    setError(null);
-    setMessage(null);
 
     try {
       const peerId = getOrCreateInvitePeerId(token);
@@ -126,9 +125,15 @@ export default function InvitePage() {
         },
       );
       setSubmitted(true);
-      setMessage("Feedback sent. Thanks for helping shape a clearer picture.");
+      showToast({
+        message: "Feedback sent. Thanks for helping shape a clearer picture.",
+        tone: "success",
+      });
     } catch (submitError) {
-      setError(extractErrorMessage(submitError));
+      showToast({
+        message: extractErrorMessage(submitError),
+        tone: "danger",
+      });
     } finally {
       setSubmitting(false);
     }
@@ -152,7 +157,7 @@ export default function InvitePage() {
       <main className="page-shell flex min-h-screen items-center justify-center px-6 py-16">
         <Panel className="max-w-xl space-y-4 text-center">
           <Notice tone="danger">
-            {error ?? "This invite could not be opened."}
+            {pageError ?? "This invite could not be opened."}
           </Notice>
           <Link href="/">
             <Button>MirrorMates home</Button>
@@ -208,9 +213,6 @@ export default function InvitePage() {
           </Panel>
 
           <Panel paper className="space-y-6">
-            {message ? <Notice tone="success">{message}</Notice> : null}
-            {error ? <Notice tone="danger">{error}</Notice> : null}
-
             {submitted ? (
               <div className="space-y-5">
                 <h2 className="font-[var(--font-display)] text-5xl tracking-[-0.05em]">

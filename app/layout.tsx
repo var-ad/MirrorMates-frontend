@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Alegreya_Sans, Fraunces, IBM_Plex_Mono } from "next/font/google";
 import { AuthProvider } from "@/components/providers/auth-provider";
+import { ToastProvider } from "@/components/providers/toast-provider";
 import "./globals.css";
 
 const displayFont = Fraunces({
@@ -43,7 +44,9 @@ export default function RootLayout({
       className={`${displayFont.variable} ${bodyFont.variable} ${monoFont.variable}`}
     >
       <body>
-        <AuthProvider>{children}</AuthProvider>
+        <ToastProvider>
+          <AuthProvider>{children}</AuthProvider>
+        </ToastProvider>
       </body>
     </html>
   );

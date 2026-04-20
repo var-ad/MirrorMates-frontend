@@ -19,6 +19,11 @@
   --radius-lg: 20px;
   --radius-md: 16px;
   --radius-sm: 12px;
+  --select-surface: rgba(16, 22, 33, 0.92);
+  --select-surface-active: rgba(19, 27, 40, 0.98);
+  --select-menu-bg: #131b28;
+  --select-menu-text: #f5ead5;
+  --select-menu-selected-bg: #2a6bcf;
 }
 
 @theme inline {
@@ -132,9 +137,45 @@ textarea {
   --text-subtle: rgba(25, 20, 16, 0.55);
   --line: rgba(25, 20, 16, 0.14);
   --line-strong: rgba(25, 20, 16, 0.24);
+  --select-surface: rgba(255, 248, 239, 0.96);
+  --select-surface-active: #fffaf4;
+  --select-menu-bg: #fff8ef;
+  --select-menu-text: #191410;
+  --select-menu-selected-bg: rgba(255, 143, 63, 0.22);
   color: var(--ink);
   border: 1px solid rgba(91, 72, 47, 0.18);
   box-shadow: 0 22px 60px rgba(6, 8, 10, 0.24);
+}
+
+.select-input {
+  color-scheme: dark;
+}
+
+.paper-card .select-input {
+  color-scheme: light;
+}
+
+.select-input::-ms-expand {
+  display: none;
+}
+
+.select-input option,
+.select-input optgroup {
+  background-color: var(--select-menu-bg);
+  color: var(--select-menu-text);
+}
+
+.select-input option:checked,
+.select-input option:hover,
+.select-input option:focus-visible {
+  background:
+    linear-gradient(
+      0deg,
+      var(--select-menu-selected-bg),
+      var(--select-menu-selected-bg)
+    ),
+    var(--select-menu-bg);
+  color: var(--select-menu-text);
 }
 
 .section-kicker {

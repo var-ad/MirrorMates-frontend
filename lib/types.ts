@@ -15,6 +15,7 @@ export interface AuthUser {
   email: string;
   fullName: string | null;
   avatarUrl: string | null;
+  hasPasswordLogin: boolean;
 }
 
 export interface TokenPair {

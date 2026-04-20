@@ -13,6 +13,7 @@ export function AdjectiveSelector({
   hint = "Select the words that feel most true for this moment.",
   maxSelections = 50,
   displayNameRequired = false,
+  orderMode = "selected-first",
 }: {
   adjectives: Adjective[];
   selectedIds: number[];
@@ -21,6 +22,7 @@ export function AdjectiveSelector({
   hint?: string;
   maxSelections?: number;
   displayNameRequired?: boolean;
+  orderMode?: "selected-first" | "input";
 }) {
   const [search, setSearch] = useState("");
   const deferredSearch = useDeferredValue(search);
@@ -34,12 +36,16 @@ export function AdjectiveSelector({
         )
       : adjectives;
 
+    if (orderMode === "input") {
+      return base;
+    }
+
     return [...base].sort((a, b) => {
       const aSelected = selectedSet.has(a.id) ? 1 : 0;
       const bSelected = selectedSet.has(b.id) ? 1 : 0;
       return bSelected - aSelected || a.word.localeCompare(b.word);
     });
-  }, [adjectives, deferredSearch, selectedSet]);
+  }, [adjectives, deferredSearch, orderMode, selectedSet]);
 
   const toggle = (adjectiveId: number) => {
     const isSelected = selectedSet.has(adjectiveId);
@@ -87,24 +93,6 @@ export function AdjectiveSelector({
           </Button>
         </div>
       </div>
-
-      {displayNameRequired ? (
-        <Notice tone="warning">
-          This session collects names from respondents, so the public invite
-          page will ask for a display name.
-        </Notice>
-      ) : (
-        <Notice tone="success">
-          This session is anonymous. Respondents can submit adjectives without
-          revealing their name.
-        </Notice>
-      )}
-
-      <TextInput
-        value={search}
-        onChange={(event) => setSearch(event.target.value)}
-        placeholder="Filter adjectives by vibe, trait, or exact word"
-      />
 
       <div className="pill-grid">
         {filtered.map((adjective) => {

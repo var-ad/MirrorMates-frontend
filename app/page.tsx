@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { GoogleSignInButton } from "@/components/auth/google-sign-in-button";
 import { useAuth } from "@/components/providers/auth-provider";
+import { useToast } from "@/components/providers/toast-provider";
 import {
   Button,
   Label,
@@ -37,12 +38,11 @@ const WINDOW_STORIES = [
 
 export default function HomePage() {
   const router = useRouter();
+  const { showToast } = useToast();
   const { isReady, isAuthenticated, user, login, signup, googleLogin, logout } =
     useAuth();
   const [mode, setMode] = useState<AuthMode>("signup");
   const [pending, setPending] = useState(false);
-  const [message, setMessage] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
   const [form, setForm] = useState({
     fullName: "",
     email: "",
@@ -67,10 +67,11 @@ export default function HomePage() {
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setPending(true);
-    setError(null);
-    setMessage(null);
     if (mode === "signup" && form.password.length < 8) {
-      setError("Password must be at least 8 characters.");
+      showToast({
+        message: "Password must be at least 8 characters.",
+        tone: "danger",
+      });
       setPending(false);
       return;
     }
@@ -94,7 +95,10 @@ export default function HomePage() {
         `/verify?email=${encodeURIComponent(result.email)}&expires=${result.expiresInMinutes}`,
       );
     } catch (submissionError) {
-      setError(extractErrorMessage(submissionError));
+      showToast({
+        message: extractErrorMessage(submissionError),
+        tone: "danger",
+      });
     } finally {
       setPending(false);
     }
@@ -102,14 +106,15 @@ export default function HomePage() {
 
   const handleGoogle = async (credential: string) => {
     setPending(true);
-    setError(null);
-    setMessage(null);
 
     try {
       await googleLogin(credential);
       router.push("/dashboard");
     } catch (googleError) {
-      setError(extractErrorMessage(googleError));
+      showToast({
+        message: extractErrorMessage(googleError),
+        tone: "danger",
+      });
     } finally {
       setPending(false);
     }
@@ -120,9 +125,10 @@ export default function HomePage() {
 
     try {
       await logout();
-      setMessage(
-        "Signed out. Come back when you want another reflection round.",
-      );
+      showToast({
+        message: "Signed out. Come back when you want another reflection round.",
+        tone: "success",
+      });
     } finally {
       setPending(false);
     }
@@ -231,8 +237,6 @@ export default function HomePage() {
                 </p>
               </div>
 
-              {message ? <Notice tone="success">{message}</Notice> : null}
-              {error ? <Notice tone="danger">{error}</Notice> : null}
               {!isReady ? (
                 <Notice tone="neutral">Checking your current session...</Notice>
               ) : null}

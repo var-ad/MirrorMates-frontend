@@ -4,29 +4,33 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useAuth } from "@/components/providers/auth-provider";
-import { Button, Label, Notice, Panel, TextInput } from "@/components/ui/primitives";
+import { useToast } from "@/components/providers/toast-provider";
+import { Button, Label, Panel, TextInput } from "@/components/ui/primitives";
 import { extractErrorMessage } from "@/lib/api";
 
 export default function ForgotPasswordPage() {
   const router = useRouter();
+  const { showToast } = useToast();
   const { forgotPassword } = useAuth();
   const [email, setEmail] = useState("");
   const [pending, setPending] = useState(false);
-  const [message, setMessage] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setPending(true);
-    setError(null);
-    setMessage(null);
 
     try {
       const result = await forgotPassword(email);
-      setMessage(result.message);
+      showToast({
+        message: result.message,
+        tone: "success",
+      });
       router.push(`/reset-password?email=${encodeURIComponent(email)}`);
     } catch (forgotError) {
-      setError(extractErrorMessage(forgotError));
+      showToast({
+        message: extractErrorMessage(forgotError),
+        tone: "danger",
+      });
     } finally {
       setPending(false);
     }
@@ -45,9 +49,6 @@ export default function ForgotPasswordPage() {
               We&apos;ll send a one-time code if the account exists and uses password sign-in.
             </p>
           </div>
-
-          {message ? <Notice tone="success">{message}</Notice> : null}
-          {error ? <Notice tone="danger">{error}</Notice> : null}
 
           <form className="space-y-4" onSubmit={handleSubmit}>
             <div className="space-y-2">

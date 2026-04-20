@@ -6,6 +6,7 @@ import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { AuthGuard } from "@/components/ui/auth-guard";
 import { useAuth } from "@/components/providers/auth-provider";
+import { useToast } from "@/components/providers/toast-provider";
 import { AdjectiveSelector } from "@/components/johari/adjective-selector";
 import { ResultsGrid } from "@/components/johari/results-grid";
 import {
@@ -46,11 +47,11 @@ function SessionExperience() {
   const params = useParams<{ id: string }>();
   const sessionId = Array.isArray(params.id) ? params.id[0] : params.id;
   const { withAuthorized } = useAuth();
+  const { showToast } = useToast();
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [reportBusy, setReportBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [message, setMessage] = useState<string | null>(null);
+  const [pageError, setPageError] = useState<string | null>(null);
   const [session, setSession] = useState<SessionSummary | null>(null);
   const [adjectives, setAdjectives] = useState<Adjective[]>([]);
   const [selfSelections, setSelfSelections] = useState<number[]>([]);
@@ -67,13 +68,13 @@ function SessionExperience() {
 
     const loadSession = async () => {
       if (!sessionId) {
-        setError("Invalid session link.");
+        setPageError("Invalid session link.");
         setLoading(false);
         return;
       }
 
       setLoading(true);
-      setError(null);
+      setPageError(null);
 
       try {
         const [adjectiveData, sessionData, resultData, reportData] =
@@ -99,7 +100,7 @@ function SessionExperience() {
         }
       } catch (loadError) {
         if (!cancelled) {
-          setError(extractErrorMessage(loadError));
+          setPageError(extractErrorMessage(loadError));
         }
       } finally {
         if (!cancelled) {
@@ -121,8 +122,6 @@ function SessionExperience() {
     }
 
     setBusy(true);
-    setError(null);
-    setMessage(null);
 
     try {
       await withAuthorized((accessToken) =>
@@ -132,9 +131,15 @@ function SessionExperience() {
         getResults(accessToken, sessionId),
       );
       setResults(refreshedResults);
-      setMessage("Self selections saved and results refreshed.");
+      showToast({
+        message: "Self selections saved and results refreshed.",
+        tone: "success",
+      });
     } catch (saveError) {
-      setError(extractErrorMessage(saveError));
+      showToast({
+        message: extractErrorMessage(saveError),
+        tone: "danger",
+      });
     } finally {
       setBusy(false);
     }
@@ -146,8 +151,6 @@ function SessionExperience() {
     }
 
     setBusy(true);
-    setError(null);
-    setMessage(null);
 
     try {
       const updated = await withAuthorized((accessToken) =>
@@ -157,9 +160,15 @@ function SessionExperience() {
         }),
       );
       setSession(updated.session);
-      setMessage("Invite settings updated.");
+      showToast({
+        message: "Invite settings updated.",
+        tone: "success",
+      });
     } catch (inviteError) {
-      setError(extractErrorMessage(inviteError));
+      showToast({
+        message: extractErrorMessage(inviteError),
+        tone: "danger",
+      });
     } finally {
       setBusy(false);
     }
@@ -171,8 +180,6 @@ function SessionExperience() {
     }
 
     setReportBusy(true);
-    setError(null);
-    setMessage(null);
 
     try {
       await withAuthorized((accessToken) => generateReport(accessToken, sessionId));
@@ -180,9 +187,15 @@ function SessionExperience() {
         getLatestReport(accessToken, sessionId),
       );
       setLatestReport(reportData);
-      setMessage("Fresh report generated.");
+      showToast({
+        message: "Fresh report generated.",
+        tone: "success",
+      });
     } catch (reportError) {
-      setError(extractErrorMessage(reportError));
+      showToast({
+        message: extractErrorMessage(reportError),
+        tone: "danger",
+      });
     } finally {
       setReportBusy(false);
     }
@@ -191,9 +204,15 @@ function SessionExperience() {
   const copyValue = async (value: string, description: string) => {
     try {
       await copyToClipboard(value);
-      setMessage(`${description} copied.`);
+      showToast({
+        message: `${description} copied.`,
+        tone: "success",
+      });
     } catch {
-      setError(`Could not copy ${description.toLowerCase()} on this device.`);
+      showToast({
+        message: `Could not copy ${description.toLowerCase()} on this device.`,
+        tone: "danger",
+      });
     }
   };
 
@@ -215,7 +234,7 @@ function SessionExperience() {
       <div className="page-shell flex min-h-screen items-center justify-center px-6 py-16">
         <Panel className="max-w-xl space-y-4 text-center">
           <Notice tone="danger">
-            {error ?? "We could not load this session."}
+            {pageError ?? "We could not load this session."}
           </Notice>
           <Link href="/dashboard">
             <Button>Back to dashboard</Button>
@@ -248,11 +267,6 @@ function SessionExperience() {
             </a>
           </div>
         </header>
-
-        <div className="space-y-6 py-8">
-          {message ? <Notice tone="success">{message}</Notice> : null}
-          {error ? <Notice tone="danger">{error}</Notice> : null}
-        </div>
 
         <div className="grid gap-8 xl:grid-cols-[0.95fr_1.05fr]">
           <div className="space-y-6">
