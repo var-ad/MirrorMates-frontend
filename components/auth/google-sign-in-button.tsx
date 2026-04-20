@@ -62,6 +62,7 @@ export function GoogleSignInButton({
 }) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const onCredentialRef = useRef(onCredential);
+  const lastRenderedWidthRef = useRef<number | null>(null);
   const [status, setStatus] = useState<"idle" | "loading" | "ready" | "error">(
     "idle",
   );
@@ -85,6 +86,14 @@ export function GoogleSignInButton({
       );
       const buttonWidth = Math.max(220, Math.min(400, containerWidth));
 
+      if (
+        lastRenderedWidthRef.current === buttonWidth &&
+        containerRef.current.childElementCount > 0
+      ) {
+        return;
+      }
+
+      lastRenderedWidthRef.current = buttonWidth;
       containerRef.current.innerHTML = "";
       window.google.accounts.id.renderButton(containerRef.current, {
         theme: "filled_black",
@@ -178,6 +187,7 @@ export function GoogleSignInButton({
 
     return () => {
       cancelled = true;
+      lastRenderedWidthRef.current = null;
       if (waitInterval) {
         clearInterval(waitInterval);
       }

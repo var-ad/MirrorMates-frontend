@@ -261,12 +261,21 @@ export async function getInviteMeta(token: string) {
 export async function submitInvite(
   token: string,
   input: { displayName?: string; adjectiveIds: number[] },
+  options?: { peerId?: string },
 ) {
+  const payload = options?.peerId
+    ? {
+        ...input,
+        peerId: options.peerId,
+      }
+    : input;
+
   return request<InviteSubmitResponse>(
     `/invite/${encodeURIComponent(token)}/submit`,
     {
       method: "POST",
-      json: input,
+      json: payload,
+      headers: options?.peerId ? { "x-peer-id": options.peerId } : undefined,
     },
   );
 }
@@ -278,10 +287,7 @@ export async function getResults(accessToken: string, sessionId: string) {
   });
 }
 
-export async function generateReport(
-  accessToken: string,
-  sessionId: string,
-) {
+export async function generateReport(accessToken: string, sessionId: string) {
   return request<ReportCreateResponse>(
     `/johari/session/${sessionId}/generate-report`,
     {
@@ -291,10 +297,7 @@ export async function generateReport(
   );
 }
 
-export async function getLatestReport(
-  accessToken: string,
-  sessionId: string,
-) {
+export async function getLatestReport(accessToken: string, sessionId: string) {
   return request<LatestReportResponse>(`/johari/session/${sessionId}/report`, {
     method: "GET",
     accessToken,

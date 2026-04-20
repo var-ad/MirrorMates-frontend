@@ -17,6 +17,40 @@ import { extractErrorMessage, getInviteMeta, submitInvite } from "@/lib/api";
 import type { Adjective, InviteMeta } from "@/lib/types";
 import { formatDate } from "@/lib/utils";
 
+const INVITE_PEER_ID_STORAGE_PREFIX = "mirrormates:invite-peer-id:";
+
+function generatePeerId(): string {
+  if (
+    typeof crypto !== "undefined" &&
+    typeof crypto.randomUUID === "function"
+  ) {
+    return crypto.randomUUID();
+  }
+
+  return `${Date.now()}-${Math.random().toString(36).slice(2, 12)}`;
+}
+
+function getOrCreateInvitePeerId(token: string): string | undefined {
+  if (typeof window === "undefined") {
+    return undefined;
+  }
+
+  const storageKey = `${INVITE_PEER_ID_STORAGE_PREFIX}${token.trim().toUpperCase()}`;
+
+  try {
+    const existing = window.localStorage.getItem(storageKey)?.trim();
+    if (existing) {
+      return existing;
+    }
+
+    const created = generatePeerId();
+    window.localStorage.setItem(storageKey, created);
+    return created;
+  } catch {
+    return undefined;
+  }
+}
+
 export default function InvitePage() {
   const params = useParams<{ token: string }>();
   const token = Array.isArray(params.token) ? params.token[0] : params.token;
@@ -79,10 +113,18 @@ export default function InvitePage() {
     setMessage(null);
 
     try {
-      await submitInvite(token, {
-        displayName: invite?.requiresDisplayName ? displayName : undefined,
-        adjectiveIds: selectedIds,
-      });
+      const peerId = getOrCreateInvitePeerId(token);
+
+      await submitInvite(
+        token,
+        {
+          displayName: invite?.requiresDisplayName ? displayName : undefined,
+          adjectiveIds: selectedIds,
+        },
+        {
+          peerId,
+        },
+      );
       setSubmitted(true);
       setMessage("Feedback sent. Thanks for helping shape a clearer picture.");
     } catch (submitError) {

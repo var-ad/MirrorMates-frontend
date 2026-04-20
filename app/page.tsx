@@ -142,7 +142,7 @@ export default function HomePage() {
           <div className="flex items-center gap-3">
             {isAuthenticated ? (
               <>
-                <Link href="/dashboard">
+                <Link href="/dashboard" prefetch={false}>
                   <Button tone="ghost">Dashboard</Button>
                 </Link>
                 <Button tone="danger" onClick={handleLogout} disabled={pending}>
@@ -161,7 +161,8 @@ export default function HomePage() {
               </h1>
               <p className="max-w-2xl text-xl leading-9 text-[var(--text-muted)]">
                 Pick traits that describe you, invite people who know you, and
-                see where your self-image matches theirs and where it doesn't.
+                see where your self-image matches theirs and where it
+                doesn&apos;t.
               </p>
             </div>
 
@@ -302,11 +303,19 @@ export default function HomePage() {
               </div>
 
               <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-[rgba(25,20,16,0.68)]">
-                <Link href="/forgot-password" className="font-bold underline">
+                <Link
+                  href="/forgot-password"
+                  prefetch={false}
+                  className="font-bold underline"
+                >
                   Forgot your password?
                 </Link>
                 {isAuthenticated ? (
-                  <Link href="/dashboard" className="font-bold underline">
+                  <Link
+                    href="/dashboard"
+                    prefetch={false}
+                    className="font-bold underline"
+                  >
                     Open dashboard
                   </Link>
                 ) : null}

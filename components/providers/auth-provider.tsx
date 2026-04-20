@@ -193,10 +193,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     void hydrateSession();
 
-    return () => {
+  return () => {
       cancelled = true;
     };
-  }, []);
+  }, [applySession]);
 
   const withAuthorized = useCallback(
     async <T,>(operation: (accessToken: string) => Promise<T>): Promise<T> => {
