@@ -51,7 +51,7 @@ function DashboardExperience() {
   const [form, setForm] = useState({
     title: "My Johari Window",
     adjectiveIds: [] as number[],
-    inviteExpiresInDays: 7,
+    inviteExpiresInDays: 1,
     responseIdentityMode: "named" as ResponseIdentityMode,
   });
 

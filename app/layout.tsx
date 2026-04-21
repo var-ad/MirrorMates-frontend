@@ -28,9 +28,26 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  title: "MirrorMates",
+  title: "Varad MirrorMates",
   description:
-    "A reflective Johari Window experience for honest feedback, self-awareness, and kinder conversations.",
+    "A self-reflective feedback tool built on the Johari Window model.",
+  openGraph: {
+    title: "MirrorMates",
+    description:
+      "A self-reflective feedback tool built on the Johari Window model.",
+    images: [
+      "https://res.cloudinary.com/dyfgrjqsw/image/upload/v1776784269/mirrormates.jpg", // Link to your image
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "MirrorMates",
+    description:
+      "A self-reflective feedback tool built on the Johari Window model.",
+    images: [
+      "https://res.cloudinary.com/dyfgrjqsw/image/upload/v1776784269/mirrormates.jpg", // Link to your image
+    ],
+  },
 };
 
 export default function RootLayout({

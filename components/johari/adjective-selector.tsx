@@ -1,9 +1,9 @@
 "use client";
 
-import { startTransition, useDeferredValue, useMemo, useState } from "react";
+import { startTransition, useMemo } from "react";
 import type { Adjective } from "@/lib/types";
 import { cn, formatRelativeCount } from "@/lib/utils";
-import { Button, Notice, TextInput } from "@/components/ui/primitives";
+import { Button } from "@/components/ui/primitives";
 
 export function AdjectiveSelector({
   adjectives,
@@ -12,7 +12,6 @@ export function AdjectiveSelector({
   title = "Choose adjectives",
   hint = "Select the words that feel most true for this moment.",
   maxSelections = 50,
-  displayNameRequired = false,
   orderMode = "selected-first",
 }: {
   adjectives: Adjective[];
@@ -24,17 +23,10 @@ export function AdjectiveSelector({
   displayNameRequired?: boolean;
   orderMode?: "selected-first" | "input";
 }) {
-  const [search, setSearch] = useState("");
-  const deferredSearch = useDeferredValue(search);
   const selectedSet = useMemo(() => new Set(selectedIds), [selectedIds]);
 
   const filtered = useMemo(() => {
-    const query = deferredSearch.trim().toLowerCase();
-    const base = query
-      ? adjectives.filter((adjective) =>
-          adjective.word.toLowerCase().includes(query),
-        )
-      : adjectives;
+    const base = adjectives;
 
     if (orderMode === "input") {
       return base;
@@ -45,7 +37,7 @@ export function AdjectiveSelector({
       const bSelected = selectedSet.has(b.id) ? 1 : 0;
       return bSelected - aSelected || a.word.localeCompare(b.word);
     });
-  }, [adjectives, deferredSearch, orderMode, selectedSet]);
+  }, [adjectives, orderMode, selectedSet]);
 
   const toggle = (adjectiveId: number) => {
     const isSelected = selectedSet.has(adjectiveId);
@@ -108,7 +100,7 @@ export function AdjectiveSelector({
               className={cn(
                 "rounded-full border px-4 py-2 text-left text-sm font-bold tracking-[0.02em] transition",
                 isSelected
-                  ? "border-[var(--accent)] bg-[var(--accent-soft)] text-[#c45c00]"
+                  ? "border-[var(--accent)] bg-[var(--accent-soft)] text-[#ff8f3f]"
                   : "border-[var(--line)] bg-[rgba(255,255,255,0.03)] text-[var(--text-muted)] hover:border-[var(--line-strong)] hover:text-[var(--text)]",
                 atLimit && "cursor-not-allowed opacity-40",
               )}

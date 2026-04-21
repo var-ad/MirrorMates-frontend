@@ -339,7 +339,7 @@ function SessionExperience() {
               <SectionHeading
                 kicker="Share"
                 title="Send a polished invite in one pass."
-                description="Use WhatsApp with a ready-made caption, copy the invite details, or hand over the QR code directly."
+                description="Copy the invite details or hand over the QR code directly."
               />
 
               <div className="grid gap-4 lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">

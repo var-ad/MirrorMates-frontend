@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
@@ -11,12 +10,10 @@ import {
   Label,
   Notice,
   Panel,
-  SectionHeading,
   TextInput,
 } from "@/components/ui/primitives";
 import { extractErrorMessage, getInviteMeta, submitInvite } from "@/lib/api";
 import type { Adjective, InviteMeta } from "@/lib/types";
-import { formatDate } from "@/lib/utils";
 
 const INVITE_PEER_ID_STORAGE_PREFIX = "mirrormates:invite-peer-id:";
 
@@ -236,7 +233,6 @@ export default function InvitePage() {
                   onChange={setSelectedIds}
                   title="Choose the adjectives that fit"
                   hint="Select the words that feel most true about the person who shared this invite."
-                  displayNameRequired={invite.requiresDisplayName}
                   orderMode="input"
                 />
 

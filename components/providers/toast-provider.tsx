@@ -11,7 +11,7 @@ import {
 } from "react";
 import { cn } from "@/lib/utils";
 
-export type ToastTone = "neutral" | "success" | "warning" | "danger";
+type ToastTone = "neutral" | "success" | "warning" | "danger";
 
 interface ToastRecord {
   id: string;
@@ -67,7 +67,11 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const showToast = useCallback(
-    ({ message, tone = "neutral", durationMs = DEFAULT_DURATION_MS }: ShowToastInput) => {
+    ({
+      message,
+      tone = "neutral",
+      durationMs = DEFAULT_DURATION_MS,
+    }: ShowToastInput) => {
       const trimmed = message.trim();
 
       if (!trimmed) {
