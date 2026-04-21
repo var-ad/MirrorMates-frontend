@@ -201,6 +201,16 @@ export interface ReportCreateResponse {
   };
 }
 
+export interface PublicReportGenerateResponse {
+  sessionId: string;
+  sessionTitle: string;
+  reportId: string;
+  reportText: string;
+  feedbackText: string;
+  generatedAt: string;
+  results: ResultsResponse;
+}
+
 export interface StoredReport {
   _id: string;
   userId: string;

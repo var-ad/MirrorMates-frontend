@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { AdjectiveSelector } from "@/components/johari/adjective-selector";
 import { useToast } from "@/components/providers/toast-provider";
 import {
@@ -19,6 +19,17 @@ import type { Adjective, InviteMeta } from "@/lib/types";
 import { formatDate } from "@/lib/utils";
 
 const INVITE_PEER_ID_STORAGE_PREFIX = "mirrormates:invite-peer-id:";
+
+function shuffleAdjectives(adjectives: Adjective[]): Adjective[] {
+  const next = [...adjectives];
+
+  for (let index = next.length - 1; index > 0; index -= 1) {
+    const swapIndex = Math.floor(Math.random() * (index + 1));
+    [next[index], next[swapIndex]] = [next[swapIndex], next[index]];
+  }
+
+  return next;
+}
 
 function generatePeerId(): string {
   if (
@@ -64,6 +75,10 @@ export default function InvitePage() {
   const [displayName, setDisplayName] = useState("");
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const [submitted, setSubmitted] = useState(false);
+  const randomizedAdjectives = useMemo(
+    () => shuffleAdjectives(adjectives),
+    [adjectives],
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -172,7 +187,9 @@ export default function InvitePage() {
       <div className="mx-auto flex min-h-screen w-full max-w-[1320px] flex-col px-6 py-8 md:px-10">
         <header className="flex flex-wrap items-center justify-between gap-4 border-b border-white/8 pb-6">
           <Link href="/" className="space-y-2">
-            <div className="section-kicker">MirrorMates invite</div>
+            <div className="section-kicker">
+              {invite.ownerLabel} has invited you to
+            </div>
             <h1 className="font-[var(--font-display)] text-4xl tracking-[-0.04em]">
               {invite.title}
             </h1>
@@ -183,36 +200,8 @@ export default function InvitePage() {
           </div>
         </header>
 
-        <div className="grid gap-8 py-10 lg:grid-cols-[0.9fr_1.1fr]">
-          <Panel className="space-y-6">
-            <SectionHeading
-              kicker="Public feedback"
-              title={`Help ${invite.ownerLabel} see what they already project.`}
-              description="Pick the adjectives that feel accurate to you. This will drop into the Johari grid on the owner's side."
-            />
-
-            <div className="rounded-[var(--radius-lg)] border border-[var(--line)] bg-white/4 p-5">
-              <Image
-                src={invite.qrCodeDataUrl}
-                alt={`QR code for ${invite.title}`}
-                width={320}
-                height={320}
-                unoptimized
-                className="mx-auto aspect-square w-full max-w-xs rounded-[var(--radius-md)] bg-white p-3"
-              />
-            </div>
-
-            <div className="space-y-3 text-base leading-7 text-[var(--text-muted)]">
-              <p>Invite expires {formatDate(invite.inviteExpiresAt)}.</p>
-              <p>
-                {invite.requiresDisplayName
-                  ? "This is a named session, so your display name is part of the response."
-                  : "This is an anonymous session, so your name stays out of the submission."}
-              </p>
-            </div>
-          </Panel>
-
-          <Panel paper className="space-y-6">
+        <div className="flex justify-center py-10">
+          <Panel paper className="w-full max-w-2xl space-y-6 bg-white/15">
             {submitted ? (
               <div className="space-y-5">
                 <h2 className="font-[var(--font-display)] text-5xl tracking-[-0.05em]">
@@ -242,12 +231,13 @@ export default function InvitePage() {
                 ) : null}
 
                 <AdjectiveSelector
-                  adjectives={adjectives}
+                  adjectives={randomizedAdjectives}
                   selectedIds={selectedIds}
                   onChange={setSelectedIds}
                   title="Choose the adjectives that fit"
                   hint="Select the words that feel most true about the person who shared this invite."
                   displayNameRequired={invite.requiresDisplayName}
+                  orderMode="input"
                 />
 
                 <Button className="w-full" disabled={submitting}>

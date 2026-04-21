@@ -10,6 +10,7 @@ import type {
   LatestReportResponse,
   MeResponse,
   MessageResponse,
+  PublicReportGenerateResponse,
   ReportCreateResponse,
   ResultsResponse,
   SaveSelfSelectionsResponse,
@@ -295,6 +296,13 @@ export async function generateReport(accessToken: string, sessionId: string) {
       accessToken,
     },
   );
+}
+
+export async function generateReportFromToken(token: string) {
+  return request<PublicReportGenerateResponse>("/report/generate", {
+    method: "POST",
+    json: { token },
+  });
 }
 
 export async function getLatestReport(accessToken: string, sessionId: string) {

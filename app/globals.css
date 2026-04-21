@@ -128,23 +128,23 @@ textarea {
   background:
     radial-gradient(
       circle at top right,
-      rgba(255, 214, 185, 0.6),
+      rgba(255, 210, 100, 0.1),
       transparent 32%
     ),
-    linear-gradient(180deg, #fff8ef 0%, #f4e5cf 100%);
-  --text: #191410;
-  --text-muted: rgba(25, 20, 16, 0.76);
-  --text-subtle: rgba(25, 20, 16, 0.55);
-  --line: rgba(25, 20, 16, 0.14);
-  --line-strong: rgba(25, 20, 16, 0.24);
-  --select-surface: rgba(255, 248, 239, 0.96);
-  --select-surface-active: #fffaf4;
-  --select-menu-bg: #fff8ef;
-  --select-menu-text: #191410;
+    linear-gradient(180deg, #1a140d 0%, #130e08 100%);
+  --text: #f5ead5;
+  --text-muted: #c9bba2;
+  --text-subtle: #877a64;
+  --line: rgba(255, 240, 217, 0.1);
+  --line-strong: rgba(255, 240, 217, 0.2);
+  --select-surface: rgba(26, 20, 13, 0.96);
+  --select-surface-active: #211810;
+  --select-menu-bg: #1a140d;
+  --select-menu-text: #f5ead5;
   --select-menu-selected-bg: rgba(255, 143, 63, 0.22);
-  color: var(--ink);
-  border: 1px solid rgba(91, 72, 47, 0.18);
-  box-shadow: 0 22px 60px rgba(6, 8, 10, 0.24);
+  color: var(--text);
+  border: 1px solid rgba(255, 210, 100, 0.1);
+  box-shadow: 0 22px 60px rgba(0, 0, 0, 0.5);
 }
 
 .select-input {

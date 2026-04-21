@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { AuthGuard } from "@/components/ui/auth-guard";
 import { useAuth } from "@/components/providers/auth-provider";
 import { useToast } from "@/components/providers/toast-provider";
@@ -15,13 +15,10 @@ import {
   Notice,
   Panel,
   SectionHeading,
-  SelectInput,
   TextInput,
 } from "@/components/ui/primitives";
 import {
   extractErrorMessage,
-  generateReport,
-  getLatestReport,
   getResults,
   getSession,
   listAdjectives,
@@ -30,7 +27,6 @@ import {
 } from "@/lib/api";
 import type {
   Adjective,
-  LatestReportResponse,
   ResponseIdentityMode,
   ResultsResponse,
   SessionSummary,
@@ -43,25 +39,82 @@ function toDateTimeLocalValue(value: string) {
   return new Date(date.getTime() - timezoneOffset).toISOString().slice(0, 16);
 }
 
+function shuffleAdjectives(adjectives: Adjective[]): Adjective[] {
+  const next = [...adjectives];
+
+  for (let index = next.length - 1; index > 0; index -= 1) {
+    const swapIndex = Math.floor(Math.random() * (index + 1));
+    [next[index], next[swapIndex]] = [next[swapIndex], next[index]];
+  }
+
+  return next;
+}
+
+function isProbablyMobileDevice() {
+  if (typeof navigator === "undefined") {
+    return false;
+  }
+
+  const userAgentData = navigator as Navigator & {
+    userAgentData?: {
+      mobile?: boolean;
+    };
+  };
+
+  if (typeof userAgentData.userAgentData?.mobile === "boolean") {
+    return userAgentData.userAgentData.mobile;
+  }
+
+  return /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
+}
+
 function SessionExperience() {
   const params = useParams<{ id: string }>();
   const sessionId = Array.isArray(params.id) ? params.id[0] : params.id;
-  const { withAuthorized } = useAuth();
+  const { user, withAuthorized } = useAuth();
   const { showToast } = useToast();
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
-  const [reportBusy, setReportBusy] = useState(false);
+  const [shareBusy, setShareBusy] = useState(false);
   const [pageError, setPageError] = useState<string | null>(null);
   const [session, setSession] = useState<SessionSummary | null>(null);
   const [adjectives, setAdjectives] = useState<Adjective[]>([]);
   const [selfSelections, setSelfSelections] = useState<number[]>([]);
   const [results, setResults] = useState<ResultsResponse | null>(null);
-  const [latestReport, setLatestReport] = useState<LatestReportResponse | null>(
-    null,
-  );
   const [inviteExpiresAt, setInviteExpiresAt] = useState("");
   const [responseIdentityMode, setResponseIdentityMode] =
     useState<ResponseIdentityMode>("named");
+
+  const randomizedAdjectives = useMemo(
+    () => shuffleAdjectives(adjectives),
+    [adjectives],
+  );
+
+  const ownerLabel = useMemo(() => {
+    if (!user) {
+      return "Someone";
+    }
+
+    return user.fullName ?? user.email.split("@")[0];
+  }, [user]);
+
+  const whatsappMessage = useMemo(() => {
+    if (!session) {
+      return "";
+    }
+
+    const responseModeLine = session.share.requiresDisplayName
+      ? "This round uses named feedback."
+      : "This round lets you respond anonymously.";
+
+    return [
+      `${ownerLabel} invited you to join their MirrorMates session.`,
+      `Session: ${session.title}`,
+      "Open the invite link below to respond.",
+      responseModeLine,
+      `Invite link: ${session.share.inviteUrl}`,
+    ].join("\n");
+  }, [ownerLabel, session]);
 
   useEffect(() => {
     let cancelled = false;
@@ -77,22 +130,17 @@ function SessionExperience() {
       setPageError(null);
 
       try {
-        const [adjectiveData, sessionData, resultData, reportData] =
-          await Promise.all([
-            withAuthorized((accessToken) => listAdjectives(accessToken)),
-            withAuthorized((accessToken) => getSession(accessToken, sessionId)),
-            withAuthorized((accessToken) => getResults(accessToken, sessionId)),
-            withAuthorized((accessToken) =>
-              getLatestReport(accessToken, sessionId),
-            ),
-          ]);
+        const [adjectiveData, sessionData, resultData] = await Promise.all([
+          withAuthorized((accessToken) => listAdjectives(accessToken)),
+          withAuthorized((accessToken) => getSession(accessToken, sessionId)),
+          withAuthorized((accessToken) => getResults(accessToken, sessionId)),
+        ]);
 
         if (!cancelled) {
           setAdjectives(adjectiveData.adjectives);
           setSession(sessionData.session);
           setSelfSelections(sessionData.selfSelectionAdjectiveIds);
           setResults(resultData);
-          setLatestReport(reportData);
           setInviteExpiresAt(
             toDateTimeLocalValue(sessionData.session.inviteExpiresAt),
           );
@@ -174,33 +222,6 @@ function SessionExperience() {
     }
   };
 
-  const handleGenerateReport = async () => {
-    if (!sessionId) {
-      return;
-    }
-
-    setReportBusy(true);
-
-    try {
-      await withAuthorized((accessToken) => generateReport(accessToken, sessionId));
-      const reportData = await withAuthorized((accessToken) =>
-        getLatestReport(accessToken, sessionId),
-      );
-      setLatestReport(reportData);
-      showToast({
-        message: "Fresh report generated.",
-        tone: "success",
-      });
-    } catch (reportError) {
-      showToast({
-        message: extractErrorMessage(reportError),
-        tone: "danger",
-      });
-    } finally {
-      setReportBusy(false);
-    }
-  };
-
   const copyValue = async (value: string, description: string) => {
     try {
       await copyToClipboard(value);
@@ -213,6 +234,52 @@ function SessionExperience() {
         message: `Could not copy ${description.toLowerCase()} on this device.`,
         tone: "danger",
       });
+    }
+  };
+
+  const handleShareOnWhatsApp = async () => {
+    if (!session) {
+      return;
+    }
+
+    setShareBusy(true);
+
+    try {
+      const encodedMessage = encodeURIComponent(whatsappMessage);
+      const mobileAppUrl = `whatsapp://send?text=${encodedMessage}`;
+      const mobileFallbackUrl = `https://api.whatsapp.com/send?text=${encodedMessage}`;
+      const desktopWebUrl = `https://web.whatsapp.com/send?text=${encodedMessage}`;
+
+      if (isProbablyMobileDevice()) {
+        const fallbackTimer = window.setTimeout(() => {
+          window.location.assign(mobileFallbackUrl);
+        }, 1200);
+
+        const cancelFallback = () => {
+          window.clearTimeout(fallbackTimer);
+        };
+
+        window.addEventListener("pagehide", cancelFallback, { once: true });
+        document.addEventListener("visibilitychange", cancelFallback, {
+          once: true,
+        });
+
+        window.location.assign(mobileAppUrl);
+        return;
+      }
+
+      window.open(desktopWebUrl, "_blank", "noopener,noreferrer");
+      showToast({
+        message: "Opened WhatsApp Web with your preset invite message.",
+        tone: "success",
+      });
+    } catch {
+      showToast({
+        message: "Could not open WhatsApp right now.",
+        tone: "danger",
+      });
+    } finally {
+      setShareBusy(false);
     }
   };
 
@@ -254,7 +321,8 @@ function SessionExperience() {
               {session.title}
             </h1>
             <p className="text-base text-[var(--text-muted)]">
-              Created {formatDate(session.createdAt)} - Invite code {session.inviteCode}
+              Created {formatDate(session.createdAt)} - Invite code{" "}
+              {session.inviteCode}
             </p>
           </div>
 
@@ -262,9 +330,6 @@ function SessionExperience() {
             <Link href="/dashboard">
               <Button tone="ghost">Dashboard</Button>
             </Link>
-            <a href={session.share.inviteUrl} target="_blank" rel="noreferrer">
-              <Button>Open public invite</Button>
-            </a>
           </div>
         </header>
 
@@ -273,99 +338,97 @@ function SessionExperience() {
             <Panel className="space-y-6">
               <SectionHeading
                 kicker="Share"
-                title="Invite people with a QR or a tight little code."
-                description="Your backend already returns a share-ready link and data URL. This page just makes them usable."
+                title="Send a polished invite in one pass."
+                description="Use WhatsApp with a ready-made caption, copy the invite details, or hand over the QR code directly."
               />
 
-              <div className="grid gap-4 md:grid-cols-[0.8fr_1.2fr]">
-                <div className="rounded-[var(--radius-lg)] border border-[var(--line)] bg-white/4 p-4">
-                  <Image
-                    src={session.share.qrCodeDataUrl}
-                    alt={`QR code for ${session.title}`}
-                    width={320}
-                    height={320}
-                    unoptimized
-                    className="aspect-square w-full rounded-[var(--radius-md)] bg-white p-3"
-                  />
-                </div>
-
-                <div className="space-y-4">
-                  <div className="rounded-[var(--radius-md)] border border-[var(--line)] bg-white/4 px-4 py-4">
-                    <div className="text-xs uppercase tracking-[0.18em] text-[var(--text-subtle)]">
-                      Invite code
-                    </div>
-                    <div className="mt-2 font-[var(--font-display)] text-4xl tracking-[0.08em]">
+              <div className="grid gap-4 lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
+                <div className="rounded-[var(--radius-lg)] border border-[var(--line)] bg-white/4 p-5">
+                  <div className="flex flex-col items-center text-center">
+                    <Image
+                      src={session.share.qrCodeDataUrl}
+                      alt={`QR code for ${session.title}`}
+                      width={320}
+                      height={320}
+                      unoptimized
+                      className="aspect-square w-full max-w-xs rounded-[var(--radius-md)] bg-white p-3"
+                    />
+                    <div className="mt-5 font-[var(--font-mono)] text-3xl tracking-[0.26em] text-[var(--text)]">
                       {session.inviteCode}
                     </div>
-                    <div className="mt-4 flex gap-3">
-                      <Button
-                        tone="ghost"
-                        onClick={() => void copyValue(session.inviteCode, "Invite code")}
-                      >
-                        Copy code
-                      </Button>
-                      <Button
-                        onClick={() => void copyValue(session.share.inviteUrl, "Invite link")}
-                      >
-                        Copy invite link
-                      </Button>
-                    </div>
                   </div>
+                </div>
 
-                  <div className="rounded-[var(--radius-md)] border border-[var(--line)] bg-white/4 px-4 py-4">
-                    <div className="text-sm text-[var(--text-muted)]">
-                      Invite expires {formatDate(session.inviteExpiresAt)}
-                    </div>
-                    <div className="mt-2 text-sm text-[var(--text-muted)]">
-                      {session.requiresDisplayName
-                        ? "Respondents are asked for a display name."
-                        : "Respondents can stay anonymous."}
-                    </div>
+                <div className="rounded-[var(--radius-lg)] border border-[var(--line)] bg-white/4 p-5">
+                  <div className="flex flex-col gap-2">
+                    <Button
+                      className="w-full"
+                      onClick={() => void handleShareOnWhatsApp()}
+                      disabled={shareBusy || session.share.isExpired}
+                    >
+                      {shareBusy ? "Opening WhatsApp..." : "Share on WhatsApp"}
+                    </Button>
+                    <Button
+                      tone="secondary"
+                      className="w-full"
+                      onClick={() =>
+                        void copyValue(session.share.inviteUrl, "Invite link")
+                      }
+                      disabled={session.share.isExpired}
+                    >
+                      Copy invite link
+                    </Button>
                   </div>
                 </div>
               </div>
 
-              <div className="grid gap-4 md:grid-cols-2">
-                <div className="space-y-2">
-                  <Label htmlFor="session-expiry">Invite expiry</Label>
-                  <TextInput
-                    id="session-expiry"
-                    type="datetime-local"
-                    value={inviteExpiresAt}
-                    onChange={(event) => setInviteExpiresAt(event.target.value)}
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="session-mode">Response mode</Label>
-                  <SelectInput
-                    id="session-mode"
-                    value={responseIdentityMode}
-                    onChange={(event) =>
-                      setResponseIdentityMode(
-                        event.target.value as ResponseIdentityMode,
-                      )
-                    }
+              <div className="rounded-[var(--radius-lg)] border border-[var(--line)] bg-white/4 p-5">
+                <div className="flex flex-col gap-3 md:flex-row md:items-center">
+                  <div className="min-w-0 flex-1 space-y-2">
+                    <Label htmlFor="session-expiry">Invite expiry</Label>
+                    <TextInput
+                      id="session-expiry"
+                      type="datetime-local"
+                      value={inviteExpiresAt}
+                      onChange={(event) =>
+                        setInviteExpiresAt(event.target.value)
+                      }
+                    />
+                  </div>
+                  <Button
+                    tone="secondary"
+                    className="md:mt-8"
+                    onClick={handleSaveInvite}
+                    disabled={busy}
                   >
-                    <option value="named">Named feedback</option>
-                    <option value="anonymous">Anonymous feedback</option>
-                  </SelectInput>
+                    {busy ? "Saving..." : "Save"}
+                  </Button>
                 </div>
-              </div>
 
-              <Button tone="secondary" onClick={handleSaveInvite} disabled={busy}>
-                {busy ? "Saving invite settings..." : "Save invite settings"}
-              </Button>
+                <p className="mt-3 text-sm text-[var(--text-muted)]">
+                  {session.requiresDisplayName
+                    ? "Respondents are asked for a display name."
+                    : "Respondents can stay anonymous."}
+                </p>
+
+                {session.share.isExpired ? (
+                  <Notice tone="warning">
+                    This invite has expired, so sharing actions are disabled
+                    until you save a new expiry.
+                  </Notice>
+                ) : null}
+              </div>
             </Panel>
 
             <Panel className="space-y-6">
               <AdjectiveSelector
-                adjectives={adjectives}
+                adjectives={randomizedAdjectives}
                 selectedIds={selfSelections}
                 onChange={setSelfSelections}
                 title="Your self selections"
                 hint="These are the adjectives you claim for yourself. Saving will refresh the Johari grid."
                 displayNameRequired={responseIdentityMode === "named"}
+                orderMode="input"
               />
 
               <Button onClick={handleSaveSelections} disabled={busy}>
@@ -380,28 +443,13 @@ function SessionExperience() {
             <Panel className="space-y-5">
               <SectionHeading
                 kicker="AI reflection"
-                title="Ask Gemini for a neutral read of the room."
-                description="This uses the report endpoints from the backend and stores the latest generated response."
+                title="Generate a report from current responses."
+                description="Open the dedicated report page anytime to generate and review the latest Gemini reflection."
               />
 
-              <Button onClick={handleGenerateReport} disabled={reportBusy}>
-                {reportBusy ? "Generating report..." : "Generate fresh report"}
-              </Button>
-
-              {latestReport?.feedback ? (
-                <div className="space-y-4 rounded-[var(--radius-lg)] border border-[var(--line)] bg-white/4 p-5">
-                  <div className="text-xs uppercase tracking-[0.18em] text-[var(--text-subtle)]">
-                    Generated {formatDate(latestReport.feedback.generatedAt)}
-                  </div>
-                  <div className="text-lg leading-8 text-[var(--text)]">
-                    {latestReport.feedback.text}
-                  </div>
-                </div>
-              ) : (
-                <Notice tone="neutral">
-                  No report has been generated for this session yet.
-                </Notice>
-              )}
+              <Link href={`/session/${session.id}/report`}>
+                <Button>Generate report now</Button>
+              </Link>
             </Panel>
           </div>
         </div>
