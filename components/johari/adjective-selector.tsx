@@ -108,7 +108,7 @@ export function AdjectiveSelector({
               className={cn(
                 "rounded-full border px-4 py-2 text-left text-sm font-bold tracking-[0.02em] transition",
                 isSelected
-                  ? "border-[var(--accent)] bg-[var(--accent-soft)] text-[#fff5ec]"
+                  ? "border-[var(--accent)] bg-[var(--accent-soft)] text-[#c45c00]"
                   : "border-[var(--line)] bg-[rgba(255,255,255,0.03)] text-[var(--text-muted)] hover:border-[var(--line-strong)] hover:text-[var(--text)]",
                 atLimit && "cursor-not-allowed opacity-40",
               )}
