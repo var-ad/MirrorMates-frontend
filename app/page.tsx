@@ -165,8 +165,8 @@ export default function HomePage() {
         </header>
 
         <section className="grid flex-1 gap-8 py-10 lg:grid-cols-[1.15fr_0.85fr] lg:items-stretch">
-          <div className="flex h-full flex-col space-y-8">
-            <div className="reveal reveal-2 space-y-6">
+          <div className="flex h-full flex-col">
+            <div className="reveal reveal-2 space-y-6 lg:flex lg:flex-1 lg:flex-col lg:justify-center">
               <h1 className="max-w-5xl font-[var(--font-display)] text-6xl leading-[0.9] tracking-[-0.06em] text-balance md:text-8xl">
                 {headline}
               </h1>
@@ -175,7 +175,7 @@ export default function HomePage() {
               </p>
             </div>
 
-            <div className="reveal reveal-3 mt-auto grid gap-4 sm:grid-cols-2">
+            <div className="reveal reveal-3 grid gap-4 sm:grid-cols-2">
               {WINDOW_STORIES.map((window, index) => (
                 <Panel
                   key={window.title}
