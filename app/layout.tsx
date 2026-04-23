@@ -28,7 +28,7 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  title: "Varad MirrorMates",
+  title: "MirrorMates",
   description:
     "A self-reflective feedback tool built on the Johari Window model.",
   openGraph: {

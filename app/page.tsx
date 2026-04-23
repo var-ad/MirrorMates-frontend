@@ -53,9 +53,13 @@ export default function HomePage() {
     () =>
       isAuthenticated && user
         ? `Welcome back, ${user.fullName ?? user.email.split("@")[0]}.`
-        : "Meet the version of you that everyone else already sees.",
+        : "See yourself the way your friends see you.",
     [isAuthenticated, user],
   );
+
+  const heroSummary = isAuthenticated
+    ? "Pick traits, invite people who know you, and get a clearer read on how you show up."
+    : "Pick traits that describe you, invite people who know you, and compare their view with yours.";
 
   const updateField = (key: keyof typeof form, value: string) => {
     setForm((current) => ({
@@ -126,7 +130,8 @@ export default function HomePage() {
     try {
       await logout();
       showToast({
-        message: "Signed out. Come back when you want another reflection round.",
+        message:
+          "Signed out. Come back when you want another reflection round.",
         tone: "success",
       });
     } finally {
@@ -141,7 +146,7 @@ export default function HomePage() {
           <Link href="/" className="space-y-1">
             <div className="section-kicker">MirrorMates</div>
             <div className="font-[var(--font-display)] text-2xl tracking-[-0.04em]">
-              Honest feedback, without the awkward conversation.
+              Find out what people really think about you.
             </div>
           </Link>
 
@@ -159,20 +164,18 @@ export default function HomePage() {
           </div>
         </header>
 
-        <section className="grid flex-1 gap-8 py-10 lg:grid-cols-[1.15fr_0.85fr] lg:items-start">
-          <div className="space-y-8">
+        <section className="grid flex-1 gap-8 py-10 lg:grid-cols-[1.15fr_0.85fr] lg:items-stretch">
+          <div className="flex h-full flex-col space-y-8">
             <div className="reveal reveal-2 space-y-6">
               <h1 className="max-w-5xl font-[var(--font-display)] text-6xl leading-[0.9] tracking-[-0.06em] text-balance md:text-8xl">
                 {headline}
               </h1>
               <p className="max-w-2xl text-xl leading-9 text-[var(--text-muted)]">
-                Pick traits that describe you, invite people who know you, and
-                see where your self-image matches theirs and where it
-                doesn&apos;t.
+                {heroSummary}
               </p>
             </div>
 
-            <div className="reveal reveal-3 grid gap-4 sm:grid-cols-2">
+            <div className="reveal reveal-3 mt-auto grid gap-4 sm:grid-cols-2">
               {WINDOW_STORIES.map((window, index) => (
                 <Panel
                   key={window.title}
@@ -196,7 +199,7 @@ export default function HomePage() {
             </div>
           </div>
 
-          <Panel id="auth" paper className="reveal reveal-3 relative">
+          <Panel id="auth" paper className="reveal reveal-3 relative h-full">
             <div className="absolute right-0 top-0 h-40 w-40 rounded-full bg-[radial-gradient(circle,rgba(255,143,63,0.32),transparent_65%)]" />
             <div className="relative space-y-4 sm:space-y-6">
               <div className="flex items-center gap-2 rounded-full bg-[rgba(25,20,16,0.08)] p-1.5 sm:p-1">
@@ -227,13 +230,13 @@ export default function HomePage() {
               <div className="space-y-3">
                 <h2 className="font-[var(--font-display)] text-5xl leading-[0.95] tracking-[-0.05em]">
                   {mode === "login"
-                    ? "Step back into your reflection room."
-                    : "No profile to fill out. Just your email, then a 6-digit code."}
+                    ? "Jump back into your reflection room."
+                    : "Create your account in under a minute."}
                 </h2>
                 <p className="text-lg leading-8 text-[rgba(25,20,16,0.72)]">
                   {mode === "login"
-                    ? "Use your password or Google to continue."
-                    : "We'll verify you first, then create your account."}
+                    ? "Sign in with password or Google to continue the last round."
+                    : "We'll verify your email first, then you can start a round."}
                 </p>
               </div>
 
