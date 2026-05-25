@@ -444,7 +444,7 @@ function SessionExperience() {
               <SectionHeading
                 kicker="AI reflection"
                 title="Generate a report from current responses."
-                description="Open the dedicated report page anytime to generate and review the latest Gemini reflection."
+                description="Open the dedicated report page anytime to generate and review the latest AI reflection."
               />
 
               <Link href={`/session/${session.id}/report`}>
